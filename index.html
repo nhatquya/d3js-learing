@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+	<meta charset="utf-8">
+	<title>Hello...</title>
+	<link rel="stylesheet" href="lib/bootstrap.min.css" type="text/css" />
+	<style> /* set the CSS */
+	
+		body {
+			background-color: #082446;
+		}
+
+		.tooltip {	
+		    position: absolute;			
+		    text-align: center;			
+		    width: 60px;					
+		    height: 28px;					
+		    padding: 2px;				
+		    font: 12px sans-serif;		
+		    background: #fff;	
+		    border: 0px;		
+		    border-radius: 8px;			
+		    pointer-events: none;			
+		}
+		
+		.axisHorizontal path{
+	        fill: none;
+	    }
+		
+		.axisHorizontal .tick line {
+	        stroke-width: 1;
+	        stroke: rgba(0, 0, 0, 0.2);
+	    }
+	    
+	    .axis path {
+		  display: none;
+		}
+		
+		.axis line {
+		  shape-rendering: crispEdges;
+		  stroke: #1F3046;
+		}
+		
+		 .textlabel{
+	        font-family: Helvetica, Arial, sans-serif;
+	        font-size: 14px;
+	        font-weight: bold;
+	        text-anchor: middle;
+	    }
+	    
+	    #bar-chart {
+	    	background-color: #082446;
+	    }
+	    
+	    #shape {
+	    	background-color: #082446;
+	    }
+	
+	</style>
+	<script type="text/javascript" src="lib/d3.min.js"></script>
+</head>
+
+<body>
+	<div class="container-fluid">
+		<div class="row">
+			<div class="col-md-12">
+				<div class="col-md-6">
+					<div class="row">
+						<div class="col-md-9">
+							<div id="bar-chart"></div>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-6">
+					<div id="shape">
+						<div class="circle"></div>
+					</div>				
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div id="progress-bar">
+					
+				</div>
+			</div>
+		</div>
+	</div>
+
+	
+	
+	<script> 
+			
+		/*Draw Shape*/
+		var svgContainer = d3.select("#shape")
+			.append("svg")
+			.attr('width', 400)
+			.attr('height', 400);
+		
+		var radius = 50;
+		var circleLength = 2 * Math.PI * radius;
+			
+		function render(strokeWidth, strokeColor, isBackground) {
+			return svgContainer.append('circle')
+				.attr('cx', 100)
+				.attr('cy', 60)
+				.attr('r', radius)
+				.attr('stroke', strokeColor || '#1E88E5')
+				.attr('stroke-width', strokeWidth || 5)
+				.attr('stroke-linecap', 'square')
+				.attr("stroke-dasharray", circleLength)
+			    .attr("stroke-dashoffset", isBackground ? 0 : circleLength)
+				.attr('fill', 'none')
+				.attr('transform', 'rotate(-90, 100, 60)');
+				
+		}
+			
+		
+	</script>
+	
+	<script type="text/javascript">
+		var tau = 2 * Math.PI; // http://tauday.com/tau-manifesto
+
+		// An arc function with all values bound except the endAngle. So, to compute an
+		// SVG path string for a given angle, we pass an object with an endAngle
+		// property to the `arc` function, and it will return the corresponding string.
+		var arc = d3.arc()
+		    .innerRadius(80)
+		    .outerRadius(60)
+		    .startAngle(0);
+		    
+		var arcBackGround = d3.arc()
+			.innerRadius(80)
+		    .outerRadius(60)
+		    .startAngle(0);
+		
+		var innerRing = d3.arc()
+			.innerRadius(55)
+		    .outerRadius(58)
+		    .startAngle(0);
+		    
+		
+		// Get the SVG container, and apply a transform such that the origin is the
+		// center of the canvas. This way, we don’t need to position arcs individually.
+		var svg = d3.select("svg"),
+		    width = +svg.attr("width"),
+		    height = +svg.attr("height"),
+		    g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+		    
+		    
+		/* For the drop shadow filter... */
+		  var defs = svg.append("defs");
+		
+		  var filter = defs.append("filter")
+		      .attr("id", "dropshadow")
+		
+		  filter.append("feGaussianBlur")
+		      .attr("in", "SourceAlpha")
+		      .attr("stdDeviation", 4)
+		      .attr("result", "blur");
+		  filter.append("feOffset")
+		      .attr("in", "blur")
+		      .attr("dx", 2)
+		      .attr("dy", 2)
+		      .attr("result", "offsetBlur");
+		
+		  var feMerge = filter.append("feMerge");
+		
+		  feMerge.append("feMergeNode")
+		      .attr("in", "offsetBlur")
+		  feMerge.append("feMergeNode")
+		      .attr("in", "SourceGraphic");
+		
+		
+		// Add the background arc, from 0 to 100% (tau).
+		var background = g.append("path")
+		    .datum({endAngle: tau})
+		    .style('fill', '#0F3E6C')
+		    .attr("d", arcBackGround);
+		    
+		var background1 = g.append("path")
+		    .datum({endAngle: tau})
+		    .style('fill', '#0F3E6C')
+		    .attr("d", innerRing)
+		
+		// Add the foreground arc in orange, currently showing 0%.
+		var foreground = g.append("path")
+		    .datum({endAngle: 0})
+		    .style("fill", "#35BFED")
+		    .attr("d", arc);
+		    
+		var nodeLabel = g.append("text")
+			.style('text-anchor', 'middle')
+			.style('alignment-baseline', 'middle')
+			.style('font-size', '2rem')
+			.style('fill', '#fff')
+			.style('font-weight', 'bold');
+		
+		var percentValue = nodeLabel.append('tspan').text(0);
+		var percentSymbol = nodeLabel.append('tspan')
+			.attr('dx', 2)
+			.attr('dy', -4)
+			.style('font-size', '1.4rem')
+			.text('%');
+		
+		// Every so often, start a transition to a new random angle. The attrTween
+		// definition is encapsulated in a separate function (a closure) below.
+		d3.interval(function() {
+		  foreground.transition()
+		      .duration(750)
+		      .attrTween("d", arcTween(Math.random() * tau));
+		}, 1500);
+		
+		// Returns a tween for a transition’s "d" attribute, transitioning any selected
+		// arcs from their current angle to the specified new angle.
+		function arcTween(newAngle) {
+			var degree = newAngle * (180/Math.PI);
+			percentValue.text(Math.round(degree * 100 / 360));
+		
+		  // The function passed to attrTween is invoked for each selected element when
+		  // the transition starts, and for each element returns the interpolator to use
+		  // over the course of transition. This function is thus responsible for
+		  // determining the starting angle of the transition (which is pulled from the
+		  // element’s bound datum, d.endAngle), and the ending angle (simply the
+		  // newAngle argument to the enclosing function).
+		  return function(d) {
+		
+		    // To interpolate between the two angles, we use the default d3.interpolate.
+		    // (Internally, this maps to d3.interpolateNumber, since both of the
+		    // arguments to d3.interpolate are numbers.) The returned function takes a
+		    // single argument t and returns a number between the starting angle and the
+		    // ending angle. When t = 0, it returns d.endAngle; when t = 1, it returns
+		    // newAngle; and for 0 < t < 1 it returns an angle in-between.
+		    var interpolate = d3.interpolate(d.endAngle, newAngle);
+		
+		    // The return value of the attrTween is also a function: the function that
+		    // we want to run for each tick of the transition. Because we used
+		    // attrTween("d"), the return value of this last function will be set to the
+		    // "d" attribute at every tick. (It’s also possible to use transition.tween
+		    // to run arbitrary code for every tick, say if you want to set multiple
+		    // attributes from a single function.) The argument t ranges from 0, at the
+		    // start of the transition, to 1, at the end.
+		    return function(t) {
+		
+		      // Calculate the current arc angle based on the transition time, t. Since
+		      // the t for the transition and the t for the interpolate both range from
+		      // 0 to 1, we can pass t directly to the interpolator.
+		      //
+		      // Note that the interpolated angle is written into the element’s bound
+		      // data object! This is important: it means that if the transition were
+		      // interrupted, the data bound to the element would still be consistent
+		      // with its appearance. Whenever we start a new arc transition, the
+		      // correct starting angle can be inferred from the data.
+		      d.endAngle = interpolate(t);
+		
+		      // Lastly, compute the arc path given the updated data! In effect, this
+		      // transition uses data-space interpolation: the data is interpolated
+		      // (that is, the end angle) rather than the path string itself.
+		      // Interpolating the angles in polar coordinates, rather than the raw path
+		      // string, produces valid intermediate arcs during the transition.
+		      return arc(d);
+		    };
+		  };
+		}
+	</script>
+	
+	<script type="text/javascript">
+		var barChart = d3.select("#bar-chart");
+		// set the dimensions and margins of the graph
+		var margin = {top: 20, right: 20, bottom: 30, left: 40},
+		    // width = 400 - margin.left - margin.right,
+		    // height = 320 - margin.top - margin.bottom;
+		    width = parseInt(barChart.style('width'), 10) - margin.left - margin.right,
+		    height = .7 * width - margin.top - margin.bottom;
+		
+		
+		// set the ranges
+		var x = d3.scaleBand()
+		          .range([0, width])
+		          .padding(0.45);
+		          
+		var y = d3.scaleLinear()
+		          .range([height, 0]);
+		          
+		// append the svg object to the body of the page
+		// append a 'group' element to 'svg'
+		// moves the 'group' element to the top left margin
+		var svg = barChart.append("svg")
+		    .attr("width", width + margin.left + margin.right)
+		    .attr("height", height + margin.top + margin.bottom)
+			.append("g")
+			.attr('class', 'main-group')
+		    .attr("transform", 
+		          "translate(" + margin.left + "," + margin.top + ")");
+		
+		var tooltip = d3.select('body').append('circle')
+			.attr('class', 'tooltip')
+			.attr('stroke', 'blue')
+			.attr('stroke-width', 5)
+			.attr('r', 50)
+			.attr('fill', '#fff');
+		
+		function numberWithCommas(x) {
+		    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		}
+		
+		// get the data
+		d3.csv("data/bar-data.csv", function(error, data) {
+		  if (error) throw error;
+		
+		  // format the data
+		  data.forEach(function(d) {
+		  	d.date = new Date(d.date);
+		  });
+		  
+		  
+			// Find highest and lowest value
+			var maxValue = d3.max(data, function(d) { return Number(d.value); })
+			var lowest = {value: maxValue};
+			var highest = {value: 0};
+			var tmp;
+			for (var i=0; i< data.length; i++) {
+			    tmp = Number(data[i].value);
+			    if (tmp < lowest.value) lowest = data[i];
+			    if (tmp > highest.value) highest = data[i];
+			}
+
+		  // Scale the range of the data in the domains
+		  x.domain(data.map(function(d) { return new Date(d.date); }));
+		  y.domain([0, maxValue + 3000]);
+		
+		
+		  // add the x Axis
+		  var xAxis = svg.append("g")
+			  .attr("class", "x axis")
+		      .attr("transform", "translate(0," + height + ")")
+		      .call(
+		      	d3.axisBottom(x)
+		      		.tickFormat(function (d) {
+						return d3.timeFormat(d.getDate() === 1 ? "%Y" : "%d %b")(d);
+		      		})
+		      		.tickValues([lowest.date, highest.date].concat(
+		      			x.domain().filter( function(d ,i) {
+		      				return d.getDate() === 1;
+		      			})
+		      		))
+		      );
+		  
+		  xAxis.selectAll('.tick').each(function (d, i) {
+		  	var curText = d3.select(this).select('text');
+		  	curText.attr('fill', '#617990');
+		  	curText.attr('y', 10);
+		  	
+		  	if(d.toDateString() === lowest.date.toDateString()){
+		  		curText.attr('fill', '#FF3366');	
+		  	}
+		  	else if(d.toDateString() === highest.date.toDateString()){
+		  		curText.attr('fill', '#00B6F1');	
+		  	}
+		  });
+		  
+		  
+		  // add the y Axis
+		  var yAxis = svg.append("g")
+			    .attr("class", "y axis")
+			    .call(d3.axisRight(y).tickSize(width));
+			
+			yAxis.selectAll("g")
+			    .classed("minor", true);
+			
+			yAxis.selectAll("text").remove();
+		
+			
+		  // append the rectangles for the bar chart
+		  var barItem = svg.selectAll(".bar")
+		      .data(data)
+		      .enter().append("rect")
+		      .attr("class", "bar")
+		      .attr("x", function(d) { return x(d.date); })
+		      .attr("width", x.bandwidth() - 5)
+		      .attr("y", height)
+		      .attr("height", 0)
+		      .on('mouseover', handleMouseOver)
+			  .on('mouseout', handleMouseOut)
+		      .transition()
+        	  .delay(function (d, i) { return i*100; })
+		      .attr("y", function(d) { return y(d.value); })
+		      .attr("height", function(d) { return height - y(d.value); })
+		      .attr('ry', 5)
+		      .attr('rx', 5)
+		      .attr('fill', function (d) {
+		      	var color = '#064B7F';
+		      	if(d.value === lowest.value) {
+		      		color = '#FF3366'
+		      	}
+		      	if(d.value === highest.value) {
+		      		color = '#00B6F1'
+		      	}
+		      	return color;
+		      });
+		      
+			  
+			//add text labels to the top of each bar
+			svg.append("g")
+				.attr('class', 'header-title')
+			    .attr("transform", "translate(0," + margin.top + ")")
+			    .selectAll(".textlabel")
+			    .data(data)
+			    .enter()
+			    .append("text")
+			    .attr("class", "textlabel")
+			    .attr("x", function(d){ return x(d.date) + (x.bandwidth()/2); })
+			    .attr("y", function(d){ return y(d.value) - 30; })
+			    .text(function(d){ return numberWithCommas(d.value); });
+			    
+			
+			d3.select('.header-title').selectAll('text')
+				.style('opacity', 0)
+				.transition()
+        		.delay(function (d, i) { return i*120; })
+        		.style('opacity', 1)
+				.each(function (d, i) {
+				  	var curText = d3.select(this);
+				  	var prevNode = y(data[i > 0 ? i - 1 : 0].value);
+				  	var nextNode = y(data[i < data.length - 1 ? i + 1 : data.length - 1].value);
+				  	var higherNode = prevNode && nextNode ? Math.min(prevNode, nextNode) : y(d.value);
+				  	higherNode = Math.min(higherNode, y(d.value));
+				  	
+				  	
+				  	if(d.value === lowest.value){
+				  		curText.attr('y', higherNode - 45);
+				  		curText.attr('fill', '#FF3366');	
+				  	}
+				  	else if(d.value === highest.value){
+				  		curText.attr('fill', '#00B6F1');	
+				  	}else{
+				  		curText.remove();	
+				  	}
+			});
+			
+			// Add circle tooltip
+			var tooltipGroup = d3.select('.main-group')
+				.append('g')
+				.attr('transform', 'translate(0,0)')
+				.style('opacity', 0);
+				
+			var circleToolTip = tooltipGroup.append('circle')
+		    	.attr('r', 22)
+		    	.attr('class', 'abc')
+		    	.attr('fill', '#FFFFF2');
+		    	
+		    var textTooltip = tooltipGroup.append('text')
+		    	.attr('text-anchor', 'middle')
+		    	.attr('alignment-baseline', 'middle')
+		    	.attr('fill', '#0D5CAB')
+		    	.style('font-weight', 'bold')
+		    	.style('font-size', '1.3rem');
+		    
+		    var t1 = textTooltip.append('tspan')
+		    	.style('font-size', '1rem');
+		    	
+		    var t2 = textTooltip.append('tspan')
+		    	.attr('x', 0)
+		    	.attr('dy', '1.4rem');
+			
+			
+			var labelHover = svg.select('.header-title')
+			    .append("text")
+			    .attr("class", "textlabel hover")
+			    .style('fill', '#FFFFF2')
+			    .text('');
+		      
+			 function handleMouseOver (d, i) {
+			 	var self = d3.select(this);
+			    var parentG = d3.select(this.parentNode);
+			    var xPosition = x(d.date) + (x.bandwidth()/2);
+			    
+			    
+				if(d !== lowest && d !== highest) {
+					var prevNode = y(data[i > 0 ? i - 1 : 0].value);
+				  	var nextNode = y(data[i < data.length - 1 ? i + 1 : data.length - 1].value);
+				  	var higherNode = prevNode && nextNode ? Math.min(prevNode, nextNode) : y(d.value);
+				  	higherNode = Math.min(higherNode, y(d.value));
+				  	
+			    	self.attr('fill', '#FFFFF2');
+			    	labelHover.style('display', '')
+				    	.attr("x", function(){ return x(d.date) + (x.bandwidth()/2); })
+					    .attr("y", function(){ return higherNode - 30; })
+					    .text(function(){ return d3.format(",")(d.value); });
+				    
+				    t1.text(d3.timeFormat("%b")(d.date));
+				    t2.text(d3.timeFormat("%d")(d.date));
+				    
+				    tooltipGroup.attr('transform', 'translate('+ (xPosition - 3) + ',' + (height + 5) +')')
+				    	.style('opacity', 1);
+				    	
+			    }			    	
+			    
+			 }
+			 
+			 function handleMouseOut (d) {
+			 	tooltipGroup.style('opacity', 0);
+			 	
+			 	if(d !== lowest && d !== highest) {
+			 		d3.select(this).attr('fill', '#064B7F');	
+			 		labelHover.style('display', 'none');
+			 	}
+			 }
+		
+		
+		});
+		
+	</script>
+	
+	<script type="text/javascript">
+		var percent = 85;
+		var totalSegments = 10;
+		var segmentWidth = 5;
+		var valueDivide = percent / totalSegments;
+		var intergerPart = parseInt(valueDivide);
+		var decimalPart = percent % totalSegments;
+		var svgProgress = d3.select('#progress-bar').append('svg')
+			.attr('width', 100)
+			.attr('height', 40);
+		    
+		//Draw the rectangle and fill with gradient
+		var progressBarGroup = svgProgress.append('g')
+			.attr('transform', 'translate(0, '+ 30 +')');
+			
+		var textGroup = svgProgress.append('g')
+			.attr('transform', 'translate(50, '+ 20 +')')
+			.append('text')
+			.attr('fill', '#fff');
+			
+		var percentText = textGroup.append('tspan')
+			.text(0);
+			
+		var percentSymbol = textGroup.append('tspan')
+			.attr('dx', 2)
+			.attr('dy', -2)
+			.style('font-size', '1.2rem')
+			.text('%');
+		
+		var colorScale = d3.scaleLinear()
+		  .range(["#0D4888", '#046A91', "#73A4AD"])
+		  .domain([0, valueDivide / 2, valueDivide])
+		  .interpolate(d3.interpolateLab);
+		  
+		for(var i = 0; i < intergerPart; i++) {
+			renderSegment(i);
+			if(i + 1 === intergerPart && decimalPart > 0) {
+				renderSegment(i + 1, decimalPart / 10 * segmentWidth);	
+			}
+		}
+		
+		percentText.transition()
+        	.duration(750)
+        	.attrTween('value', function () {
+				var i = d3.interpolate(this.textContent, percent);
+				
+				return function (t) {
+					var newValue = Math.round(i(t));
+					percentText.text(newValue);
+					return newValue;
+				}
+			});
+		
+		function renderSegment(i, width) {
+			progressBarGroup.append('rect')
+				.attr('class', 'bar-segment')
+				.attr('width', width || segmentWidth)
+				.attr('opacity', 0)
+				.attr('height', 15)
+				.attr('fill', colorScale(i))
+				.attr('x', i > 0 ? i * 8 : 0)
+				.transition()
+				.delay( 100 * i)
+				.attr('opacity', 1);
+		}
+			
+		
+	</script>
+</body>
+</html>
